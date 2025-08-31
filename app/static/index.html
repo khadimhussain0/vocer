@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOCER - Voice AI Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = {}</script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0f;
+            background-image:
+                radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99,102,241,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 80% 50%, rgba(139,92,246,0.05) 0%, transparent 50%),
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 60px 60px, 60px 60px;
+        }
+        .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.06); }
+        .gradient-text { background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gradient-bg { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+        .gradient-bg-hover:hover { background: linear-gradient(135deg, #818cf8, #a78bfa); }
+        .sidebar-item { transition: all 0.2s ease; }
+        .sidebar-item:hover { background: rgba(255,255,255,0.05); padding-left: 1.25rem; }
+        .sidebar-item.active { background: rgba(99,102,241,0.15); border-left: 3px solid #6366f1; box-shadow: inset 0 0 20px rgba(99,102,241,0.08), 0 0 15px rgba(99,102,241,0.05); }
+        .sidebar-item.active .sidebar-icon { color: #a78bfa; filter: drop-shadow(0 0 4px rgba(167,139,250,0.4)); }
+        .sidebar-item.active .sidebar-label { color: #e0e7ff; }
+        .pulse-ring { animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+        @keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.5; } 80%, 100% { transform: scale(1.4); opacity: 0; } }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .toast { animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 2.7s; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        .drag-over { border-color: #6366f1 !important; background: rgba(99,102,241,0.1) !important; }
+        input[type="range"] { -webkit-appearance: none; background: rgba(255,255,255,0.1); border-radius: 9999px; height: 6px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #6366f1; cursor: pointer; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        .spinner { border: 3px solid rgba(255,255,255,0.1); border-top-color: #6366f1; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .section { display: none; }
+        .section.active { display: block; }
+        .voice-card { transition: all 0.2s ease; }
+        .voice-card:hover { transform: translateY(-1px); background: rgba(255,255,255,0.06); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .voice-card.selected { border-color: #6366f1; background: rgba(99,102,241,0.1); box-shadow: 0 0 12px rgba(99,102,241,0.15); }
+        .voice-card.selected:hover { background: rgba(99,102,241,0.15); }
+        button.gradient-bg { transition: all 0.2s ease; }
+        button.gradient-bg:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,0.3); }
+        button.gradient-bg:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(99,102,241,0.2); }
+        .glass.rounded-2xl { transition: border-color 0.3s ease, box-shadow 0.3s ease; }
+        .glass.rounded-2xl:hover { border-color: rgba(255,255,255,0.1); }
+        .sidebar-overlay { display: none; }
+        .sidebar-overlay.active { display: block; }
+    </style>
+</head>
+<body class="h-full text-gray-200 overflow-hidden">
+    <div id="toast-container" class="fixed top-16 lg:top-4 right-4 z-[60] flex flex-col gap-2"></div>
+
+    <!-- Mobile Header -->
+    <header class="lg:hidden fixed top-0 left-0 right-0 z-30 glass border-b border-white/5 px-4 py-3 flex items-center gap-3">
+        <button onclick="toggleSidebar()" class="p-2 -ml-1">
+            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <h1 class="text-lg font-bold gradient-text tracking-tight">VOCER</h1>
+    </header>
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div id="sidebar-overlay" class="sidebar-overlay fixed inset-0 bg-black/50 z-40 lg:hidden" onclick="closeSidebar()"></div>
+
+    <div class="flex h-full">
+        <aside id="sidebar" class="fixed lg:relative w-64 h-full glass border-r border-white/5 flex flex-col shrink-0 transition-transform duration-300 z-40 -translate-x-full lg:translate-x-0">
+            <div class="p-5 border-b border-white/5">
+                <h1 class="text-2xl font-bold gradient-text tracking-tight">VOCER</h1>
+                <p class="text-xs text-gray-500 mt-1">Voice AI Studio</p>
+            </div>
+            <nav class="flex-1 py-3 overflow-y-auto">
+                <button onclick="showSection('ai-agent')" class="sidebar-item active w-full flex items-center gap-3 px-4 py-3 text-left transition-all duration-200 hover:bg-white/5" data-section="ai-agent">
+                    <svg class="sidebar-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                    <span class="sidebar-label text-sm text-gray-400">AI Agent</span>
+                </button>
+                <button onclick="showSection('stt')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-left transition-all duration-200 hover:bg-white/5" data-section="stt">
+                    <svg class="sidebar-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                    <span class="sidebar-label text-sm text-gray-400">Speech to Text</span>
+                </button>
+                <button onclick="showSection('tts')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-left transition-all duration-200 hover:bg-white/5" data-section="tts">
+                    <svg class="sidebar-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+                    <span class="sidebar-label text-sm text-gray-400">Text to Speech</span>
+                </button>
+                <button onclick="showSection('clone')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-left transition-all duration-200 hover:bg-white/5" data-section="clone">
+                    <svg class="sidebar-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    <span class="sidebar-label text-sm text-gray-400">Voice Cloning</span>
+                </button>
+                <button onclick="showSection('translate')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-left transition-all duration-200 hover:bg-white/5" data-section="translate">
+                    <svg class="sidebar-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/></svg>
+                    <span class="sidebar-label text-sm text-gray-400">Translation</span>
+                </button>
+                <button onclick="showSection('sound-fx')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-left transition-all duration-200 hover:bg-white/5" data-section="sound-fx">
+                    <svg class="sidebar-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+                    <span class="sidebar-label text-sm text-gray-400">Sound Effects</span>
+                </button>
+            </nav>
+            <div class="p-4 border-t border-white/5">
+                <p class="text-[10px] text-gray-600 text-center">Powered by ElevenLabs</p>
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto pt-14 lg:pt-0 p-4 sm:p-6 lg:p-8">
+
+            <!-- Speech to Text -->
+            <div id="section-stt" class="section fade-in max-w-4xl mx-auto">
+                <div class="mb-6 sm:mb-8">
+                    <h2 class="text-2xl sm:text-3xl font-bold gradient-text mb-1 sm:mb-2">Speech to Text</h2>
+                    <p class="text-gray-500 text-sm">Convert audio to text with word-level timestamps</p>
+                </div>
+
+                <div class="flex flex-wrap gap-2 mb-6">
+                    <button onclick="showSTTTab('upload')" id="stt-tab-upload" class="px-3 sm:px-4 py-2 rounded-lg text-sm font-medium gradient-bg text-white transition-all">Upload File</button>
+                    <button onclick="showSTTTab('record')" id="stt-tab-record" class="px-3 sm:px-4 py-2 rounded-lg text-sm font-medium glass text-gray-400 hover:text-white transition-all">Record Mic</button>
+                    <button onclick="showSTTTab('live')" id="stt-tab-live" class="px-3 sm:px-4 py-2 rounded-lg text-sm font-medium glass text-gray-400 hover:text-white transition-all">Live</button>
+                </div>
+
+                <div id="stt-upload-tab" class="fade-in">
+                    <div id="stt-dropzone" class="glass rounded-2xl p-8 sm:p-12 text-center border-2 border-dashed border-white/10 cursor-pointer transition-all duration-300 hover:border-indigo-500/50"
+                         ondrop="handleSTTDrop(event)" ondragover="handleSTTDragOver(event)" ondragleave="handleSTTDragLeave(event)" onclick="document.getElementById('stt-file-input').click()">
+                        <input type="file" id="stt-file-input" class="hidden" accept="audio/*,video/*" onchange="handleSTTFile(this.files[0])">
+                        <svg class="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                        <p class="text-gray-400 mb-1 text-sm sm:text-base">Drag & drop an audio or video file here</p>
+                        <p class="text-gray-600 text-xs sm:text-sm">or click to browse</p>
+                        <p id="stt-file-name" class="text-indigo-400 text-sm mt-3 hidden"></p>
+                    </div>
+                    <button onclick="submitSTT()" id="stt-submit-btn" class="mt-4 w-full gradient-bg gradient-bg-hover text-white font-medium py-3 rounded-xl transition-all duration-200 disabled:opacity-40" disabled>
+                        <span id="stt-submit-text">Transcribe</span>
+                        <div id="stt-submit-spinner" class="spinner mx-auto hidden"></div>
+                    </button>
+                </div>
+
+                <div id="stt-record-tab" class="hidden fade-in">
+                    <div class="glass rounded-2xl p-6 sm:p-8 text-center">
+                        <div class="flex justify-center mb-6">
+                            <button onclick="toggleRecording()" id="record-btn" class="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full gradient-bg flex items-center justify-center transition-all duration-300 hover:scale-105">
+                                <div id="record-pulse" class="absolute inset-0 rounded-full gradient-bg pulse-ring hidden"></div>
+                                <svg id="record-mic-icon" class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                                <svg id="record-stop-icon" class="w-7 h-7 sm:w-8 sm:h-8 text-white hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+                            </button>
+                        </div>
+                        <div id="record-waveform" class="flex items-center justify-center gap-1 h-12 mb-4 hidden"></div>
+                        <p id="record-status" class="text-gray-500 text-sm">Click the microphone to start recording</p>
+                        <p id="record-timer" class="text-gray-600 text-xs mt-1 hidden">00:00</p>
+                    </div>
+                </div>
+
+                <div id="stt-live-tab" class="hidden fade-in">
+                    <div class="glass rounded-2xl p-6 sm:p-8 text-center mb-6">
+                        <button onclick="toggleLiveSTT()" id="live-stt-btn" class="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full gradient-bg flex items-center justify-center mx-auto transition-all duration-300 hover:scale-105">
+                            <div id="live-stt-pulse" class="absolute inset-0 rounded-full gradient-bg pulse-ring hidden"></div>
+                            <svg id="live-stt-mic" class="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                        </button>
+                        <p id="live-stt-status" class="text-gray-500 text-sm mt-4">Click to start real-time transcription</p>
+                        <div id="live-stt-waveform" class="flex items-center justify-center gap-1 h-12 mt-4 hidden"></div>
+                    </div>
+                    <div class="glass rounded-2xl p-4 sm:p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-base sm:text-lg font-semibold text-white">Live Transcript</h3>
+                            <button onclick="clearLiveSTT()" class="text-xs text-gray-600 hover:text-indigo-400 transition-colors">Clear</button>
+                        </div>
+                        <div id="live-stt-transcript" class="text-gray-300 leading-relaxed min-h-[150px] sm:min-h-[200px] whitespace-pre-wrap text-sm">
+                            <span class="text-gray-600 italic">Transcript will appear here...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="stt-result" class="mt-6 hidden fade-in">
+                    <div class="glass rounded-2xl p-4 sm:p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-base sm:text-lg font-semibold text-white">Transcript</h3>
+                            <div class="flex gap-3">
+                                <button onclick="downloadSRT()" class="text-xs text-gray-500 hover:text-indigo-400 transition-colors">Download .srt</button>
+                                <button onclick="copyTranscript()" class="text-xs text-gray-500 hover:text-indigo-400 transition-colors">Copy</button>
+                            </div>
+                        </div>
+                        <div id="stt-transcript" class="text-gray-300 leading-relaxed whitespace-pre-wrap text-sm"></div>
+                        <div id="stt-words" class="mt-4 pt-4 border-t border-white/5 hidden">
+                            <h4 class="text-sm font-medium text-gray-500 mb-2">Word Timestamps</h4>
+                            <div id="stt-word-list" class="flex flex-wrap gap-1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Text to Speech -->
+            <div id="section-tts" class="section fade-in max-w-4xl mx-auto">
+                <div class="mb-6 sm:mb-8">
+                    <h2 class="text-2xl sm:text-3xl font-bold gradient-text mb-1 sm:mb-2">Text to Speech</h2>
+                    <p class="text-gray-500 text-sm">Generate natural-sounding speech from text</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="glass rounded-2xl p-4 sm:p-6">
+                            <textarea id="tts-text" class="w-full h-32 sm:h-40 bg-transparent text-gray-200 placeholder-gray-600 resize-none outline-none text-sm leading-relaxed" placeholder="Enter text to convert to speech..."></textarea>
+                            <div class="flex items-center justify-between mt-2">
+                                <span id="tts-char-count" class="text-xs text-gray-600">0 chars</span>
+                                <select id="tts-model" class="bg-white/5 text-gray-400 text-xs rounded-lg px-3 py-1.5 border border-white/10 outline-none">
+                                    <option value="eleven_multilingual_v2">Multilingual v2</option>
+                                    <option value="eleven_monolingual_v1">English v1</option>
+                                    <option value="eleven_turbo_v2_5">Turbo v2.5</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="glass rounded-2xl p-4 sm:p-6">
+                            <h3 class="text-sm font-medium text-gray-400 mb-4">Voice Settings</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex justify-between text-xs text-gray-500 mb-1"><span>Stability</span><span id="tts-stability-val">0.50</span></div>
+                                    <input type="range" id="tts-stability" min="0" max="1" step="0.01" value="0.5" class="w-full" oninput="document.getElementById('tts-stability-val').textContent=parseFloat(this.value).toFixed(2)">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs text-gray-500 mb-1"><span>Clarity + Similarity</span><span id="tts-similarity-val">0.75</span></div>
+                                    <input type="range" id="tts-similarity" min="0" max="1" step="0.01" value="0.75" class="w-full" oninput="document.getElementById('tts-similarity-val').textContent=parseFloat(this.value).toFixed(2)">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs text-gray-500 mb-1"><span>Style Exaggeration</span><span id="tts-style-val">0.00</span></div>
+                                    <input type="range" id="tts-style" min="0" max="1" step="0.01" value="0" class="w-full" oninput="document.getElementById('tts-style-val').textContent=parseFloat(this.value).toFixed(2)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button onclick="generateTTS()" id="tts-generate-btn" class="w-full gradient-bg gradient-bg-hover text-white font-medium py-3 rounded-xl transition-all duration-200 disabled:opacity-40" disabled>
+                            <span id="tts-generate-text">Generate Speech</span>
+                            <div id="tts-generate-spinner" class="spinner mx-auto hidden"></div>
+                        </button>
+
+                        <div id="tts-player" class="glass rounded-2xl p-4 sm:p-6 hidden fade-in">
+                            <audio id="tts-audio" controls class="w-full"></audio>
+                            <div class="flex justify-end mt-2">
+                                <a id="tts-download" class="text-xs text-gray-500 hover:text-indigo-400 transition-colors cursor-pointer">Download MP3</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="glass rounded-2xl p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-sm font-medium text-gray-400">Voices</h3>
+                                <button onclick="loadVoices()" class="text-xs text-gray-600 hover:text-indigo-400 transition-colors">Refresh</button>
+                            </div>
+                            <input type="text" id="tts-voice-search" class="w-full bg-white/5 text-gray-300 text-xs rounded-lg px-3 py-2 border border-white/10 outline-none mb-3 placeholder-gray-600" placeholder="Search voices..." oninput="filterVoices()">
+                            <div id="tts-voice-list" class="space-y-1.5 max-h-[300px] lg:max-h-[400px] overflow-y-auto pr-1">
+                                <p class="text-gray-600 text-xs text-center py-4">Loading voices...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice Cloning -->
+            <div id="section-clone" class="section fade-in max-w-4xl mx-auto">
+                <div class="mb-6 sm:mb-8">
+                    <h2 class="text-2xl sm:text-3xl font-bold gradient-text mb-1 sm:mb-2">Voice Cloning</h2>
+                    <p class="text-gray-500 text-sm">Create custom voice clones from audio samples</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                    <div class="space-y-4">
+                        <div class="glass rounded-2xl p-4 sm:p-6">
+                            <label class="block text-sm font-medium text-gray-400 mb-2">Voice Name</label>
+                            <input type="text" id="clone-name" class="w-full bg-white/5 text-gray-200 rounded-lg px-4 py-2.5 border border-white/10 outline-none placeholder-gray-600 text-sm" placeholder="My Custom Voice">
+                        </div>
+
+                        <div class="glass rounded-2xl p-4 sm:p-6">
+                            <label class="block text-sm font-medium text-gray-400 mb-2">Audio Samples</label>
+                            <div id="clone-dropzone" class="border-2 border-dashed border-white/10 rounded-xl p-6 sm:p-8 text-center cursor-pointer transition-all hover:border-indigo-500/50"
+                                 ondrop="handleCloneDrop(event)" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" onclick="document.getElementById('clone-file-input').click()">
+                                <input type="file" id="clone-file-input" class="hidden" accept="audio/*" multiple onchange="handleCloneFiles(this.files)">
+                                <svg class="w-8 h-8 mx-auto text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/></svg>
+                                <p class="text-gray-500 text-sm">Drop audio samples here</p>
+                                <p class="text-gray-600 text-xs mt-1">MP3, WAV, M4A (up to 25 files)</p>
+                            </div>
+                            <div id="clone-file-list" class="mt-3 space-y-1.5"></div>
+                        </div>
+
+                        <button onclick="createClone()" id="clone-submit-btn" class="w-full gradient-bg gradient-bg-hover text-white font-medium py-3 rounded-xl transition-all duration-200 disabled:opacity-40" disabled>
+                            <span id="clone-submit-text">Create Voice Clone</span>
+                            <div id="clone-submit-spinner" class="spinner mx-auto hidden"></div>
+                        </button>
+                    </div>
+
+                    <div>
+                        <div class="glass rounded-2xl p-4 sm:p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-sm font-medium text-gray-400">Your Cloned Voices</h3>
+                                <button onclick="loadClonedVoices()" class="text-xs text-gray-600 hover:text-indigo-400 transition-colors">Refresh</button>
+                            </div>
+                            <div id="clone-voice-list" class="space-y-2">
+                                <p class="text-gray-600 text-xs text-center py-4">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Translation -->
+            <div id="section-translate" class="section fade-in max-w-4xl mx-auto">
+                <div class="mb-6 sm:mb-8">
+                    <h2 class="text-2xl sm:text-3xl font-bold gradient-text mb-1 sm:mb-2">Translation</h2>
+                    <p class="text-gray-500 text-sm">Translate text and audio/video between languages</p>
+                </div>
+
+                <div class="flex flex-wrap gap-2 mb-6">
+                    <button onclick="showTranslateTab('text')" id="translate-tab-text" class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium gradient-bg text-white transition-all">Text</button>
+                    <button onclick="showTranslateTab('audio')" id="translate-tab-audio" class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium glass text-gray-400 hover:text-white transition-all">Audio/Video</button>
+                    <button onclick="showTranslateTab('live')" id="translate-tab-live" class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium glass text-gray-400 hover:text-white transition-all">Live</button>
+                </div>
+
+                <div id="translate-text-tab" class="fade-in">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div class="glass rounded-2xl p-4 sm:p-6">
+                            <div class="flex items-center justify-between mb-3">
+                                <select id="translate-source-lang" class="bg-white/5 text-gray-400 text-xs rounded-lg px-3 py-1.5 border border-white/10 outline-none">
+                                    <option value="en">English</option>
+                                    <option value="es">Spanish</option>
+                                    <option value="fr">French</option>
+                                    <option value="de">German</option>
+                                    <option value="it">Italian</option>
+                                    <option value="pt">Portuguese</option>
+                                    <option value="zh">Chinese</option>
+                                    <option value="ja">Japanese</option>
+                                    <option value="ko">Korean</option>
+                                    <option value="ar">Arabic</option>
+                                    <option value="hi">Hindi</option>
+                                    <option value="ru">Russian</option>
+                                </select>
+                                <span class="text-xs text-gray-600">Source</span>
+                            </div>
+                            <textarea id="translate-input" class="w-full h-28 sm:h-32 bg-transparent text-gray-200 placeholder-gray-600 resize-none outline-none text-sm leading-relaxed" placeholder="Enter text to translate..."></textarea>
+                        </div>
+                        <div class="glass rounded-2xl p-4 sm:p-6">
+                            <div class="flex items-center justify-between mb-3">
+                                <select id="translate-target-lang" class="bg-white/5 text-gray-400 text-xs rounded-lg px-3 py-1.5 border border-white/10 outline-none">
+                                    <option value="es">Spanish</option>
+                                    <option value="en">English</option>
+                                    <option value="fr">French</option>
+                                    <option value="de">German</option>
+                                    <option value="it">Italian</option>
+                                    <option value="pt">Portuguese</option>
+                                    <option value="zh">Chinese</option>
+                                    <option value="ja">Japanese</option>
+                                    <option value="ko">Korean</option>
+                                    <option value="ar">Arabic</option>
+                                    <option value="hi">Hindi</option>
+                                    <option value="ru">Russian</option>
+                                </select>
+                                <span class="text-xs text-gray-600">Target</span>
+                            </div>
+                            <div id="translate-output" class="text-gray-300 text-sm leading-relaxed min-h-[7rem] sm:min-h-[8rem]">
+                                <span class="text-gray-600 italic">Translation will appear here...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 sm:gap-4 mt-4">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="translate-speak" class="rounded bg-white/5 border-white/10 text-indigo-500">
+                            <label for="translate-speak" class="text-xs text-gray-500">Speak</label>
+                        </div>
+                        <select id="translate-voice" class="bg-white/5 text-gray-400 text-xs rounded-lg px-3 py-1.5 border border-white/10 outline-none flex-shrink-0">
+                            <option value="">Loading voices...</option>
+                        </select>
+                        <button onclick="translateText()" id="translate-text-btn" class="flex-1 min-w-[120px] gradient-bg gradient-bg-hover text-white font-medium py-3 rounded-xl transition-all duration-200">
+                            <span id="translate-text-btn-label">Translate</span>
+                            <div id="translate-text-spinner" class="spinner mx-auto hidden"></div>
+                        </button>
+                    </div>
+                    <div id="translate-audio-player" class="glass rounded-2xl p-4 mt-4 hidden fade-in">
+                        <audio id="translate-audio" controls class="w-full"></audio>
+                    </div>
+                </div>
+
+                <div id="translate-audio-tab" class="hidden fade-in">
+                    <div class="glass rounded-2xl p-4 sm:p-6 mb-4">
+                        <div class="flex flex-wrap items-center gap-3 sm:gap-4 mb-4">
+                            <select id="dub-source-lang" class="bg-white/5 text-gray-400 text-xs rounded-lg px-3 py-1.5 border border-white/10 outline-none">
+                                <option value="en">English</option>
+                                <option value="es">Spanish</option>
+                                <option value="fr">French</option>
+                                <option value="de">German</option>
+                                <option value="it">Italian</option>
+                                <option value="pt">Portuguese</option>
+                                <option value="zh">Chinese</option>
+                                <option value="ja">Japanese</option>
+                            </select>
+                            <svg class="w-5 h-5 text-gray-600 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                            <select id="dub-target-lang" class="bg-white/5 text-gray-400 text-xs rounded-lg px-3 py-1.5 border border-white/10 outline-none">
+                                <option value="es">Spanish</option>
+                                <option value="en">English</option>
+                                <option value="fr">French</option>
+                                <option value="de">German</option>
+                                <option value="it">Italian</option>
+                                <option value="pt">Portuguese</option>
+                                <option value="zh">Chinese</option>
+                                <option value="ja">Japanese</option>
+                            </select>
+                        </div>
+                        <div id="dub-dropzone" class="border-2 border-dashed border-white/10 rounded-xl p-6 sm:p-8 text-center cursor-pointer transition-all hover:border-indigo-500/50"
+                             ondrop="handleDubDrop(event)" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" onclick="document.getElementById('dub-file-input').click()">
+                            <input type="file" id="dub-file-input" class="hidden" accept="audio/*,video/*" onchange="handleDubFile(this.files[0])">
+                            <svg class="w-8 h-8 mx-auto text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                            <p class="text-gray-500 text-sm">Drop audio/video file for dubbing</p>
+                            <p id="dub-file-name" class="text-indigo-400 text-sm mt-2 hidden"></p>
+                        </div>
+                    </div>
+                    <button onclick="startDubbing()" id="dub-submit-btn" class="w-full gradient-bg gradient-bg-hover text-white font-medium py-3 rounded-xl transition-all duration-200 disabled:opacity-40" disabled>
+                        <span id="dub-submit-text">Start Dubbing</span>
+                        <div id="dub-submit-spinner" class="spinner mx-auto hidden"></div>
+                    </button>
+                    <div id="dub-progress" class="glass rounded-2xl p-4 sm:p-6 mt-4 hidden fade-in">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="spinner"></div>
+                            <span id="dub-progress-text" class="text-sm text-gray-400">Processing...</span>
+                        </div>
+                        <div class="w-full bg-white/5 rounded-full h-2">
+                            <div id="dub-progress-bar" class="gradient-bg h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+                        </div>
+                    </div>
+                    <div id="dub-result" class="glass rounded-2xl p-4 sm:p-6 mt-4 hidden fade-in">
+                        <h3 class="text-sm font-medium text-gray-400 mb-3">Dubbed Audio</h3>
+                        <audio id="dub-audio" controls class="w-full"></audio>
+                    </div>
+                </div>
+
+                <div id="translate-live-tab" class="hidden fade-in">
+                <div class="glass rounded-2xl p-3 sm:p-4 mb-6 flex flex-wrap items-center gap-2 sm:gap-4">
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-gray-500">From:</label>
+                        <select id="lt-source-lang" class="bg-white/5 text-gray-400 text-xs rounded-lg px-2 sm:px-3 py-1.5 border border-white/10 outline-none">
+                            <option value="en">English</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                        </select>
+                    </div>
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-gray-500">To:</label>
+                        <select id="lt-target-lang" class="bg-white/5 text-gray-400 text-xs rounded-lg px-2 sm:px-3 py-1.5 border border-white/10 outline-none">
+                            <option value="es">Spanish</option>
+                            <option value="en">English</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <label class="text-xs text-gray-500">Voice:</label>
+                        <select id="lt-voice" class="bg-white/5 text-gray-400 text-xs rounded-lg px-2 sm:px-3 py-1.5 border border-white/10 outline-none flex-1 sm:flex-initial">
+                            <option value="">Loading voices...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="text-center mb-6">
+                    <button onclick="toggleLiveTranslate()" id="lt-btn" class="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full gradient-bg flex items-center justify-center mx-auto transition-all duration-300 hover:scale-105">
+                        <div id="lt-pulse" class="absolute inset-0 rounded-full gradient-bg pulse-ring hidden"></div>
+                        <svg class="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                    </button>
+                    <p id="lt-status" class="text-gray-500 text-sm mt-3">Click to start live translation</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="glass rounded-2xl p-4 sm:p-6">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-medium text-gray-400">Source Transcript</h3>
+                            <button onclick="clearLiveTranslate()" class="text-xs text-gray-600 hover:text-indigo-400">Clear</button>
+                        </div>
+                        <div id="lt-source" class="text-gray-300 text-sm leading-relaxed min-h-[150px] sm:min-h-[200px] whitespace-pre-wrap">
+                            <span class="text-gray-600 italic">Source text will appear here...</span>
+                        </div>
+                    </div>
+                    <div class="glass rounded-2xl p-4 sm:p-6">
+                        <h3 class="text-sm font-medium text-gray-400 mb-3">Translation</h3>
+                        <div id="lt-translation" class="text-gray-300 text-sm leading-relaxed min-h-[150px] sm:min-h-[200px] whitespace-pre-wrap">
+                            <span class="text-gray-600 italic">Translated text will appear here...</span>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+
+            <!-- AI Agent -->
+            <div id="section-ai-agent" class="section active fade-in max-w-4xl mx-auto">
+                <div class="mb-6 sm:mb-8">
+                    <h2 class="text-2xl sm:text-3xl font-bold gradient-text mb-1 sm:mb-2">AI Agent</h2>
+                    <p class="text-gray-500 text-sm">Have a real-time voice conversation with an AI agent</p>
+                </div>
+
+                <input type="hidden" id="agent-id-input" value="">
+
+                <div class="glass rounded-2xl p-3 sm:p-4 mb-6 flex items-center gap-3 sm:gap-4">
+                    <select id="conv-voice" class="flex-1 min-w-0 bg-white/5 text-gray-400 text-sm rounded-lg px-3 sm:px-4 py-2.5 border border-white/10 outline-none">
+                        <option value="">Loading voices...</option>
+                    </select>
+                    <button onclick="toggleConversation()" id="conv-btn" class="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full gradient-bg flex items-center justify-center shrink-0 transition-all duration-300 hover:scale-105">
+                        <div id="conv-pulse" class="absolute inset-0 rounded-full gradient-bg pulse-ring hidden"></div>
+                        <svg id="conv-mic-icon" class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                        <svg id="conv-stop-icon" class="w-5 h-5 sm:w-6 sm:h-6 text-white hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+                    </button>
+                    <span id="conv-status" class="text-gray-500 text-xs sm:text-sm shrink-0 hidden sm:block">Ready</span>
+                </div>
+                <div id="conv-waveform" class="flex items-center justify-center gap-1 h-8 mb-4 hidden"></div>
+
+                <div class="glass rounded-2xl p-4 sm:p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-base sm:text-lg font-semibold text-white">Conversation</h3>
+                        <button onclick="clearConversation()" class="text-xs text-gray-600 hover:text-indigo-400 transition-colors">Clear</button>
+                    </div>
+                    <div id="conv-transcript" class="space-y-3 min-h-[200px] sm:min-h-[300px] max-h-[400px] overflow-y-auto pr-1">
+                        <p class="text-gray-600 italic text-sm">Conversation will appear here...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sound Effects -->
+            <div id="section-sound-fx" class="section fade-in max-w-4xl mx-auto">
+                <div class="mb-6 sm:mb-8">
+                    <h2 class="text-2xl sm:text-3xl font-bold gradient-text mb-1 sm:mb-2">Sound Effects</h2>
+                    <p class="text-gray-500 text-sm">Generate sound effects from text descriptions</p>
+                </div>
+
+                <div class="glass rounded-2xl p-4 sm:p-6 mb-4">
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Describe the sound</label>
+                    <textarea id="sfx-text" class="w-full h-24 bg-transparent text-gray-200 placeholder-gray-600 resize-none outline-none text-sm leading-relaxed" placeholder="e.g. Thunder rumbling in a cave, birds chirping at dawn, spaceship engine powering up..."></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div class="glass rounded-2xl p-4 sm:p-6">
+                        <div class="flex justify-between text-xs text-gray-500 mb-1"><span>Duration</span><span id="sfx-duration-val">5.0s</span></div>
+                        <input type="range" id="sfx-duration" min="0.5" max="30" step="0.5" value="5" class="w-full" oninput="document.getElementById('sfx-duration-val').textContent=parseFloat(this.value).toFixed(1)+'s'">
+                    </div>
+                    <div class="glass rounded-2xl p-4 sm:p-6">
+                        <div class="flex justify-between text-xs text-gray-500 mb-1"><span>Prompt Influence</span><span id="sfx-influence-val">0.30</span></div>
+                        <input type="range" id="sfx-influence" min="0" max="1" step="0.01" value="0.3" class="w-full" oninput="document.getElementById('sfx-influence-val').textContent=parseFloat(this.value).toFixed(2)">
+                    </div>
+                </div>
+
+                <button onclick="generateSFX()" id="sfx-generate-btn" class="w-full gradient-bg gradient-bg-hover text-white font-medium py-3 rounded-xl transition-all duration-200">
+                    <span id="sfx-generate-text">Generate Sound Effect</span>
+                    <div id="sfx-generate-spinner" class="spinner mx-auto hidden"></div>
+                </button>
+
+                <div id="sfx-player" class="glass rounded-2xl p-4 sm:p-6 mt-4 hidden fade-in">
+                    <audio id="sfx-audio" controls class="w-full"></audio>
+                    <div class="flex justify-end mt-2">
+                        <a id="sfx-download" class="text-xs text-gray-500 hover:text-indigo-400 transition-colors cursor-pointer">Download</a>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+<script>
+let voices = [];
+let selectedVoiceId = '';
+let sttFile = null;
+let cloneFiles = [];
+let dubFile = null;
+let lastSTTData = null;
+
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordingStream = null;
+let recordingTimer = null;
+let recordingSeconds = 0;
+let audioContext = null;
+let analyser = null;
+let waveformAnimId = null;
+
+let liveSTTSocket = null;
+let liveSTTStream = null;
+let liveSTTActive = false;
+let liveSTTTranscript = '';
+let liveSTTPartial = '';
+
+let ltSocket = null;
+let ltStream = null;
+let ltActive = false;
+let ltSourceTexts = [];
+let ltTranslations = [];
+let ltAudioQueue = [];
+let ltPlayingAudio = false;
+
+function showSection(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+    const section = document.getElementById('section-' + id);
+    if (section) section.classList.add('active');
+    const btn = document.querySelector(`[data-section="${id}"]`);
+    if (btn) btn.classList.add('active');
+    if (['tts', 'translate', 'ai-agent'].includes(id)) {
+        if (voices.length === 0) loadVoices();
+    }
+    if (id === 'clone') loadClonedVoices();
+    closeSidebar();
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.toggle('-translate-x-full');
+    overlay.classList.toggle('active');
+}
+
+function closeSidebar() {
+    if (window.innerWidth < 1024) {
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        document.getElementById('sidebar-overlay').classList.remove('active');
+    }
+}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const colors = { success: 'border-green-500 bg-green-500/10', error: 'border-red-500 bg-red-500/10', info: 'border-indigo-500 bg-indigo-500/10' };
+    const toast = document.createElement('div');
+    toast.className = `toast glass rounded-lg px-4 py-3 border-l-4 ${colors[type] || colors.info} max-w-sm`;
+    toast.innerHTML = `<p class="text-sm text-gray-200">${message}</p>`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+async function loadVoices() {
+    try {
+        const resp = await fetch('/api/voices');
+        const data = await resp.json();
+        voices = data.voices || [];
+        renderVoiceList();
+        populateVoiceSelects();
+    } catch (e) {
+        showToast('Failed to load voices', 'error');
+    }
+}
+
+function renderVoiceList() {
+    const container = document.getElementById('tts-voice-list');
+    if (!voices.length) {
+        container.innerHTML = '<p class="text-gray-600 text-xs text-center py-4">No voices available</p>';
+        return;
+    }
+    if (!selectedVoiceId && voices.length) selectedVoiceId = voices[0].voice_id;
+    container.innerHTML = voices.map(v => `
+        <div class="voice-card p-2.5 rounded-lg border border-white/5 cursor-pointer transition-all hover:bg-white/5 ${v.voice_id === selectedVoiceId ? 'selected' : ''}"
+             onclick="selectVoice('${v.voice_id}')">
+            <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">${(v.name || '?')[0].toUpperCase()}</div>
+                <div class="min-w-0">
+                    <p class="text-xs font-medium text-gray-300 truncate">${v.name}</p>
+                    <p class="text-[10px] text-gray-600 truncate">${v.labels?.accent || ''} ${v.labels?.gender || ''}</p>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    updateTTSButton();
+}
+
+function filterVoices() {
+    const q = document.getElementById('tts-voice-search').value.toLowerCase();
+    document.querySelectorAll('#tts-voice-list .voice-card').forEach(card => {
+        const name = card.querySelector('.text-gray-300')?.textContent.toLowerCase() || '';
+        card.style.display = name.includes(q) ? '' : 'none';
+    });
+}
+
+function selectVoice(id) {
+    selectedVoiceId = id;
+    document.querySelectorAll('#tts-voice-list .voice-card').forEach(c => {
+        c.classList.toggle('selected', c.getAttribute('onclick').includes(id));
+    });
+    updateTTSButton();
+}
+
+function updateTTSButton() {
+    const btn = document.getElementById('tts-generate-btn');
+    const text = document.getElementById('tts-text').value.trim();
+    btn.disabled = !text || !selectedVoiceId;
+}
+
+function populateVoiceSelects() {
+    const defaultId = voices.length ? voices[0].voice_id : '';
+    ['translate-voice', 'lt-voice', 'conv-voice'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const current = el.value;
+        el.innerHTML = voices.map(v => `<option value="${v.voice_id}">${v.name}</option>`).join('');
+        el.value = current || defaultId;
+    });
+}
+
+document.getElementById('tts-text')?.addEventListener('input', function() {
+    document.getElementById('tts-char-count').textContent = this.value.length + ' chars';
+    updateTTSButton();
+});
+
+async function generateTTS() {
+    const text = document.getElementById('tts-text').value.trim();
+    if (!text || !selectedVoiceId) return;
+
+    const btn = document.getElementById('tts-generate-btn');
+    const btnText = document.getElementById('tts-generate-text');
+    const spinner = document.getElementById('tts-generate-spinner');
+    btn.disabled = true; btnText.classList.add('hidden'); spinner.classList.remove('hidden');
+
+    try {
+        const resp = await fetch('/api/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text,
+                voice_id: selectedVoiceId,
+                model_id: document.getElementById('tts-model').value,
+                stability: parseFloat(document.getElementById('tts-stability').value),
+                similarity_boost: parseFloat(document.getElementById('tts-similarity').value),
+                style: parseFloat(document.getElementById('tts-style').value),
+            })
+        });
+        if (!resp.ok) throw new Error('TTS failed');
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = document.getElementById('tts-audio');
+        audio.src = url;
+        document.getElementById('tts-player').classList.remove('hidden');
+        const dl = document.getElementById('tts-download');
+        dl.href = url; dl.download = 'vocer-tts.mp3';
+        audio.play();
+        showToast('Speech generated successfully', 'success');
+    } catch (e) {
+        showToast('Failed to generate speech: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false; btnText.classList.remove('hidden'); spinner.classList.add('hidden');
+    }
+}
+
+function showSTTTab(tab) {
+    const active = 'px-3 sm:px-4 py-2 rounded-lg text-sm font-medium gradient-bg text-white transition-all';
+    const inactive = 'px-3 sm:px-4 py-2 rounded-lg text-sm font-medium glass text-gray-400 hover:text-white transition-all';
+    ['upload', 'record', 'live'].forEach(t => {
+        document.getElementById('stt-' + t + '-tab').classList.toggle('hidden', tab !== t);
+        document.getElementById('stt-tab-' + t).className = tab === t ? active : inactive;
+    });
+}
+
+function handleSTTDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function handleSTTDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function handleSTTDrop(e) {
+    e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) handleSTTFile(e.dataTransfer.files[0]);
+}
+function handleSTTFile(file) {
+    if (!file) return;
+    sttFile = file;
+    const nameEl = document.getElementById('stt-file-name');
+    nameEl.textContent = file.name; nameEl.classList.remove('hidden');
+    document.getElementById('stt-submit-btn').disabled = false;
+}
+
+async function submitSTT() {
+    if (!sttFile) return;
+    const btn = document.getElementById('stt-submit-btn');
+    const btnText = document.getElementById('stt-submit-text');
+    const spinner = document.getElementById('stt-submit-spinner');
+    btn.disabled = true; btnText.classList.add('hidden'); spinner.classList.remove('hidden');
+
+    try {
+        const form = new FormData();
+        form.append('file', sttFile);
+        const resp = await fetch('/api/stt', { method: 'POST', body: form });
+        if (!resp.ok) throw new Error('STT failed');
+        const data = await resp.json();
+        displayTranscript(data);
+        showToast('Transcription complete', 'success');
+    } catch (e) {
+        showToast('Transcription failed: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false; btnText.classList.remove('hidden'); spinner.classList.add('hidden');
+    }
+}
+
+function displayTranscript(data) {
+    lastSTTData = data;
+    document.getElementById('stt-result').classList.remove('hidden');
+    document.getElementById('stt-transcript').textContent = data.text || '';
+    const words = data.words || [];
+    if (words.length > 0) {
+        document.getElementById('stt-words').classList.remove('hidden');
+        document.getElementById('stt-word-list').innerHTML = words.map(w =>
+            `<span class="inline-block bg-white/5 rounded px-1.5 py-0.5 text-xs text-gray-400 cursor-default" title="${w.start?.toFixed(2) || 0}s - ${w.end?.toFixed(2) || 0}s">${w.text || w.word || ''}</span>`
+        ).join('');
+    }
+}
+
+function copyTranscript() {
+    const text = document.getElementById('stt-transcript').textContent;
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard', 'success'));
+}
+
+function downloadSRT() {
+    if (!lastSTTData) return;
+    const words = lastSTTData.words || [];
+    let srt = '';
+    if (words.length > 0) {
+        const segSize = 8;
+        let idx = 1;
+        for (let i = 0; i < words.length; i += segSize) {
+            const chunk = words.slice(i, i + segSize);
+            const start = chunk[0].start ?? 0;
+            const end = chunk[chunk.length - 1].end ?? start + 2;
+            const text = chunk.map(w => w.text || w.word || '').join(' ');
+            srt += `${idx}\n${formatSRTTime(start)} --> ${formatSRTTime(end)}\n${text}\n\n`;
+            idx++;
+        }
+    } else {
+        srt = `1\n00:00:00,000 --> 00:00:10,000\n${lastSTTData.text || ''}\n\n`;
+    }
+    const blob = new Blob([srt], { type: 'text/srt' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'transcript.srt';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('SRT file downloaded', 'success');
+}
+
+function formatSRTTime(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    const ms = Math.round((seconds % 1) * 1000);
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(ms).padStart(3,'0')}`;
+}
+
+async function toggleRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        stopRecording();
+    } else {
+        startRecording();
+    }
+}
+
+async function startRecording() {
+    try {
+        recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(recordingStream);
+        recordedChunks = [];
+
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+        mediaRecorder.onstop = async () => {
+            const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+            recordingStream.getTracks().forEach(t => t.stop());
+            cancelAnimationFrame(waveformAnimId);
+            document.getElementById('record-status').textContent = 'Transcribing...';
+            const form = new FormData();
+            form.append('file', blob, 'recording.webm');
+            try {
+                const resp = await fetch('/api/stt', { method: 'POST', body: form });
+                if (!resp.ok) throw new Error('STT failed');
+                const data = await resp.json();
+                displayTranscript(data);
+                document.getElementById('record-status').textContent = 'Transcription complete!';
+                showToast('Transcription complete', 'success');
+            } catch (e) {
+                document.getElementById('record-status').textContent = 'Transcription failed';
+                showToast('Transcription failed', 'error');
+            }
+        };
+
+        mediaRecorder.start(250);
+        document.getElementById('record-mic-icon').classList.add('hidden');
+        document.getElementById('record-stop-icon').classList.remove('hidden');
+        document.getElementById('record-pulse').classList.remove('hidden');
+        document.getElementById('record-status').textContent = 'Recording...';
+        document.getElementById('record-timer').classList.remove('hidden');
+
+        recordingSeconds = 0;
+        recordingTimer = setInterval(() => {
+            recordingSeconds++;
+            const m = Math.floor(recordingSeconds / 60).toString().padStart(2, '0');
+            const s = (recordingSeconds % 60).toString().padStart(2, '0');
+            document.getElementById('record-timer').textContent = m + ':' + s;
+        }, 1000);
+
+        setupRecordingWaveform(recordingStream);
+    } catch (e) {
+        showToast('Microphone access denied', 'error');
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+    clearInterval(recordingTimer);
+    document.getElementById('record-mic-icon').classList.remove('hidden');
+    document.getElementById('record-stop-icon').classList.add('hidden');
+    document.getElementById('record-pulse').classList.add('hidden');
+    document.getElementById('record-waveform').classList.add('hidden');
+}
+
+function setupRecordingWaveform(stream) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 64;
+    const source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
+    const waveDiv = document.getElementById('record-waveform');
+    waveDiv.classList.remove('hidden');
+    waveDiv.innerHTML = '';
+    for (let i = 0; i < 20; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'w-1 bg-indigo-500 rounded-full transition-all duration-75';
+        bar.style.height = '4px';
+        waveDiv.appendChild(bar);
+    }
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    function animate() {
+        analyser.getByteFrequencyData(dataArray);
+        const bars = waveDiv.children;
+        for (let i = 0; i < bars.length; i++) {
+            const val = dataArray[i % dataArray.length] || 0;
+            bars[i].style.height = Math.max(4, val / 255 * 48) + 'px';
+        }
+        waveformAnimId = requestAnimationFrame(animate);
+    }
+    animate();
+}
+
+function handleCloneDrop(e) {
+    e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+    handleCloneFiles(e.dataTransfer.files);
+}
+
+function handleCloneFiles(files) {
+    for (const f of files) {
+        if (cloneFiles.length >= 25) break;
+        cloneFiles.push(f);
+    }
+    renderCloneFileList();
+}
+
+function removeCloneFile(idx) {
+    cloneFiles.splice(idx, 1);
+    renderCloneFileList();
+}
+
+function renderCloneFileList() {
+    const list = document.getElementById('clone-file-list');
+    list.innerHTML = cloneFiles.map((f, i) => `
+        <div class="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+            <span class="text-xs text-gray-400 truncate">${f.name}</span>
+            <button onclick="removeCloneFile(${i})" class="text-gray-600 hover:text-red-400 ml-2">&times;</button>
+        </div>
+    `).join('');
+    document.getElementById('clone-submit-btn').disabled = !cloneFiles.length || !document.getElementById('clone-name').value.trim();
+}
+
+document.getElementById('clone-name')?.addEventListener('input', function() {
+    document.getElementById('clone-submit-btn').disabled = !cloneFiles.length || !this.value.trim();
+});
+
+async function createClone() {
+    const name = document.getElementById('clone-name').value.trim();
+    if (!name || !cloneFiles.length) return;
+    const btn = document.getElementById('clone-submit-btn');
+    const btnText = document.getElementById('clone-submit-text');
+    const spinner = document.getElementById('clone-submit-spinner');
+    btn.disabled = true; btnText.classList.add('hidden'); spinner.classList.remove('hidden');
+    try {
+        const form = new FormData();
+        form.append('name', name);
+        cloneFiles.forEach(f => form.append('files', f));
+        const resp = await fetch('/api/voices/clone', { method: 'POST', body: form });
+        if (!resp.ok) throw new Error('Clone failed');
+        showToast('Voice clone created!', 'success');
+        cloneFiles = [];
+        renderCloneFileList();
+        document.getElementById('clone-name').value = '';
+        await loadVoices();
+        await loadClonedVoices();
+    } catch (e) {
+        showToast('Clone failed: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false; btnText.classList.remove('hidden'); spinner.classList.add('hidden');
+    }
+}
+
+let allClonedVoices = [];
+let clonedVoicesShown = 6;
+
+async function loadClonedVoices() {
+    try {
+        const resp = await fetch('/api/voices');
+        const data = await resp.json();
+        allClonedVoices = (data.voices || []).filter(v => v.category === 'cloned').reverse();
+        clonedVoicesShown = 6;
+        renderClonedVoices();
+    } catch (e) {
+        showToast('Failed to load cloned voices', 'error');
+    }
+}
+
+function renderClonedVoices() {
+    const list = document.getElementById('clone-voice-list');
+    if (!allClonedVoices.length) {
+        list.innerHTML = '<p class="text-gray-600 text-xs text-center py-4">No cloned voices yet</p>';
+        return;
+    }
+    const visible = allClonedVoices.slice(0, clonedVoicesShown);
+    let html = visible.map(v => `
+        <div class="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2.5">
+            <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full gradient-bg flex items-center justify-center text-white text-xs font-bold">${v.name[0].toUpperCase()}</div>
+                <span class="text-sm text-gray-300">${v.name}</span>
+            </div>
+            <button onclick="deleteClonedVoice('${v.voice_id}')" class="text-xs text-gray-600 hover:text-red-400 transition-colors">Delete</button>
+        </div>
+    `).join('');
+    if (allClonedVoices.length > clonedVoicesShown) {
+        const remaining = allClonedVoices.length - clonedVoicesShown;
+        html += `<button onclick="showMoreClonedVoices()" class="w-full py-2.5 rounded-lg text-xs font-medium text-indigo-400 hover:text-indigo-300 glass hover:bg-white/5 transition-all">Load more (${remaining})</button>`;
+    }
+    list.innerHTML = html;
+}
+
+function showMoreClonedVoices() {
+    clonedVoicesShown += 6;
+    renderClonedVoices();
+}
+
+async function deleteClonedVoice(id) {
+    if (!confirm('Delete this voice clone?')) return;
+    try {
+        await fetch(`/api/voices/${id}`, { method: 'DELETE' });
+        showToast('Voice deleted', 'success');
+        await loadVoices();
+        await loadClonedVoices();
+    } catch (e) {
+        showToast('Delete failed', 'error');
+    }
+}
+
+function toggleLiveSTT() {
+    if (liveSTTActive) stopLiveSTT();
+    else startLiveSTT();
+}
+
+async function startLiveSTT() {
+    try {
+        liveSTTStream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
+    } catch (e) {
+        showToast('Microphone access denied', 'error');
+        return;
+    }
+    liveSTTActive = true;
+    document.getElementById('live-stt-pulse').classList.remove('hidden');
+    document.getElementById('live-stt-status').textContent = 'Listening...';
+    document.getElementById('live-stt-waveform').classList.remove('hidden');
+    setupLiveWaveform('live-stt-waveform', liveSTTStream);
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    liveSTTSocket = new WebSocket(`${proto}//${location.host}/ws/stt`);
+
+    liveSTTSocket.onopen = () => {
+        startAudioCapture(liveSTTStream, (base64) => {
+            if (liveSTTSocket && liveSTTSocket.readyState === 1)
+                liveSTTSocket.send(JSON.stringify({ type: 'audio', audio: base64 }));
+        }, 'liveSTT');
+    };
+
+    liveSTTSocket.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.type === 'transcript') {
+            liveSTTPartial = data.text || '';
+        } else if (data.type === 'final_transcript') {
+            const text = data.text || '';
+            if (text.trim()) {
+                liveSTTTranscript += (liveSTTTranscript ? ' ' : '') + text.trim();
+                liveSTTPartial = '';
+            }
+        } else if (data.type === 'error') {
+            showToast('Live STT error: ' + data.message, 'error');
+        }
+        renderLiveSTTTranscript();
+    };
+
+    liveSTTSocket.onerror = () => showToast('WebSocket error', 'error');
+    liveSTTSocket.onclose = () => { if (liveSTTActive) stopLiveSTT(); };
+}
+
+function renderLiveSTTTranscript() {
+    const el = document.getElementById('live-stt-transcript');
+    let html = '';
+    if (liveSTTTranscript) html += liveSTTTranscript;
+    if (liveSTTPartial) html += `<span class="text-indigo-400/60"> ${liveSTTPartial}</span>`;
+    if (!html) html = '<span class="text-gray-600 italic">Transcript will appear here...</span>';
+    el.innerHTML = html;
+    el.scrollTop = el.scrollHeight;
+}
+
+function stopLiveSTT() {
+    liveSTTActive = false;
+    if (liveSTTSocket) {
+        try { liveSTTSocket.send(JSON.stringify({ type: 'stop' })); } catch {}
+        liveSTTSocket.close();
+        liveSTTSocket = null;
+    }
+    if (liveSTTStream) {
+        liveSTTStream.getTracks().forEach(t => t.stop());
+        liveSTTStream = null;
+    }
+    stopAudioCapture('liveSTT');
+    document.getElementById('live-stt-pulse').classList.add('hidden');
+    document.getElementById('live-stt-status').textContent = 'Click to start real-time transcription';
+    document.getElementById('live-stt-waveform').classList.add('hidden');
+}
+
+function clearLiveSTT() {
+    liveSTTTranscript = '';
+    liveSTTPartial = '';
+    renderLiveSTTTranscript();
+}
+
+function showTranslateTab(tab) {
+    const active = 'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium gradient-bg text-white transition-all';
+    const inactive = 'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium glass text-gray-400 hover:text-white transition-all';
+    ['text', 'audio', 'live'].forEach(t => {
+        document.getElementById('translate-' + t + '-tab').classList.toggle('hidden', tab !== t);
+        document.getElementById('translate-tab-' + t).className = tab === t ? active : inactive;
+    });
+}
+
+async function translateText() {
+    const text = document.getElementById('translate-input').value.trim();
+    if (!text) return;
+    const btn = document.getElementById('translate-text-btn');
+    const label = document.getElementById('translate-text-btn-label');
+    const spinner = document.getElementById('translate-text-spinner');
+    btn.disabled = true; label.classList.add('hidden'); spinner.classList.remove('hidden');
+    try {
+        const speak = document.getElementById('translate-speak').checked;
+        const voiceId = document.getElementById('translate-voice').value;
+        const resp = await fetch('/api/translate/text', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text,
+                source_lang: document.getElementById('translate-source-lang').value,
+                target_lang: document.getElementById('translate-target-lang').value,
+                speak: speak && !!voiceId,
+                voice_id: voiceId,
+            })
+        });
+        if (!resp.ok) throw new Error('Translation failed');
+        const data = await resp.json();
+        document.getElementById('translate-output').textContent = data.translated_text || '';
+        if (data.audio_base64) {
+            const audioBytes = Uint8Array.from(atob(data.audio_base64), c => c.charCodeAt(0));
+            const blob = new Blob([audioBytes], { type: 'audio/mpeg' });
+            const url = URL.createObjectURL(blob);
+            const audioEl = document.getElementById('translate-audio');
+            audioEl.src = url;
+            document.getElementById('translate-audio-player').classList.remove('hidden');
+            audioEl.play();
+        }
+        showToast('Translation complete', 'success');
+    } catch (e) {
+        showToast('Translation failed: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false; label.classList.remove('hidden'); spinner.classList.add('hidden');
+    }
+}
+
+function handleDubDrop(e) {
+    e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) handleDubFile(e.dataTransfer.files[0]);
+}
+
+function handleDubFile(file) {
+    if (!file) return;
+    dubFile = file;
+    const nameEl = document.getElementById('dub-file-name');
+    nameEl.textContent = file.name; nameEl.classList.remove('hidden');
+    document.getElementById('dub-submit-btn').disabled = false;
+}
+
+async function startDubbing() {
+    if (!dubFile) return;
+    const btn = document.getElementById('dub-submit-btn');
+    const btnText = document.getElementById('dub-submit-text');
+    const spinner = document.getElementById('dub-submit-spinner');
+    btn.disabled = true; btnText.classList.add('hidden'); spinner.classList.remove('hidden');
+    const progressDiv = document.getElementById('dub-progress');
+    const resultDiv = document.getElementById('dub-result');
+    progressDiv.classList.remove('hidden');
+    resultDiv.classList.add('hidden');
+    try {
+        const form = new FormData();
+        form.append('file', dubFile);
+        form.append('source_lang', document.getElementById('dub-source-lang').value);
+        form.append('target_lang', document.getElementById('dub-target-lang').value);
+        const resp = await fetch('/api/translate/audio', { method: 'POST', body: form });
+        if (!resp.ok) throw new Error('Dubbing failed to start');
+        const data = await resp.json();
+        await pollDubbing(data.dubbing_id, document.getElementById('dub-target-lang').value);
+    } catch (e) {
+        showToast('Dubbing failed: ' + e.message, 'error');
+        progressDiv.classList.add('hidden');
+    } finally {
+        btn.disabled = false; btnText.classList.remove('hidden'); spinner.classList.add('hidden');
+    }
+}
+
+async function pollDubbing(dubbingId, targetLang) {
+    const progressText = document.getElementById('dub-progress-text');
+    const progressBar = document.getElementById('dub-progress-bar');
+    let attempts = 0;
+    const maxAttempts = 120;
+    while (attempts < maxAttempts) {
+        await new Promise(r => setTimeout(r, 3000));
+        attempts++;
+        try {
+            const resp = await fetch(`/api/translate/audio/${dubbingId}/status`);
+            if (!resp.ok) throw new Error('Status check failed');
+            const data = await resp.json();
+            const pct = Math.min(90, (attempts / maxAttempts) * 100);
+            progressBar.style.width = pct + '%';
+            progressText.textContent = `Status: ${data.status}...`;
+            if (data.status === 'dubbed') {
+                progressBar.style.width = '100%';
+                progressText.textContent = 'Complete! Loading audio...';
+                const audioResp = await fetch(`/api/translate/audio/${dubbingId}/download/${targetLang}`);
+                if (!audioResp.ok) throw new Error('Download failed');
+                const blob = await audioResp.blob();
+                document.getElementById('dub-audio').src = URL.createObjectURL(blob);
+                document.getElementById('dub-result').classList.remove('hidden');
+                document.getElementById('dub-progress').classList.add('hidden');
+                showToast('Dubbing complete!', 'success');
+                return;
+            } else if (data.status === 'failed') {
+                throw new Error('Dubbing failed on server');
+            }
+        } catch (e) {
+            showToast('Dubbing error: ' + e.message, 'error');
+            document.getElementById('dub-progress').classList.add('hidden');
+            return;
+        }
+    }
+    showToast('Dubbing timed out', 'error');
+    document.getElementById('dub-progress').classList.add('hidden');
+}
+
+function toggleLiveTranslate() {
+    if (ltActive) stopLiveTranslate();
+    else startLiveTranslate();
+}
+
+async function startLiveTranslate() {
+    try {
+        ltStream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
+    } catch (e) {
+        showToast('Microphone access denied', 'error');
+        return;
+    }
+    ltActive = true;
+    document.getElementById('lt-pulse').classList.remove('hidden');
+    document.getElementById('lt-status').textContent = 'Listening & translating...';
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ltSocket = new WebSocket(`${proto}//${location.host}/ws/translate`);
+
+    ltSocket.onopen = () => {
+        ltSocket.send(JSON.stringify({
+            source_lang: document.getElementById('lt-source-lang').value,
+            target_lang: document.getElementById('lt-target-lang').value,
+            voice_id: document.getElementById('lt-voice').value,
+        }));
+        startAudioCapture(ltStream, (base64) => {
+            if (ltSocket && ltSocket.readyState === 1)
+                ltSocket.send(JSON.stringify({ type: 'audio', audio: base64 }));
+        }, 'liveTranslate');
+    };
+
+    ltSocket.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.type === 'partial') {
+            renderLTSource(data.text, true);
+        } else if (data.type === 'source') {
+            ltSourceTexts.push(data.text);
+            renderLTSource('', false);
+        } else if (data.type === 'translation') {
+            ltTranslations.push(data.text);
+            renderLTTranslation();
+        } else if (data.type === 'audio') {
+            const audioBytes = Uint8Array.from(atob(data.audio), c => c.charCodeAt(0));
+            const blob = new Blob([audioBytes], { type: 'audio/mpeg' });
+            ltAudioQueue.push(URL.createObjectURL(blob));
+            playNextLTAudio();
+        } else if (data.type === 'error') {
+            showToast('Translation error: ' + data.message, 'error');
+        }
+    };
+
+    ltSocket.onerror = () => showToast('WebSocket error', 'error');
+    ltSocket.onclose = () => { if (ltActive) stopLiveTranslate(); };
+}
+
+function renderLTSource(partial, isPartial) {
+    const el = document.getElementById('lt-source');
+    let html = ltSourceTexts.join(' ');
+    if (isPartial && partial) html += `<span class="text-indigo-400/60"> ${partial}</span>`;
+    if (!html.trim()) html = '<span class="text-gray-600 italic">Source text will appear here...</span>';
+    el.innerHTML = html;
+}
+
+function renderLTTranslation() {
+    const el = document.getElementById('lt-translation');
+    const html = ltTranslations.join(' ');
+    el.innerHTML = html || '<span class="text-gray-600 italic">Translated text will appear here...</span>';
+}
+
+function playNextLTAudio() {
+    if (ltPlayingAudio || !ltAudioQueue.length) return;
+    ltPlayingAudio = true;
+    const url = ltAudioQueue.shift();
+    const audio = new Audio(url);
+    audio.onended = () => { ltPlayingAudio = false; playNextLTAudio(); };
+    audio.onerror = () => { ltPlayingAudio = false; playNextLTAudio(); };
+    audio.play().catch(() => { ltPlayingAudio = false; playNextLTAudio(); });
+}
+
+function stopLiveTranslate() {
+    ltActive = false;
+    if (ltSocket) {
+        try { ltSocket.send(JSON.stringify({ type: 'stop' })); } catch {}
+        ltSocket.close();
+        ltSocket = null;
+    }
+    if (ltStream) {
+        ltStream.getTracks().forEach(t => t.stop());
+        ltStream = null;
+    }
+    stopAudioCapture('liveTranslate');
+    document.getElementById('lt-pulse').classList.add('hidden');
+    document.getElementById('lt-status').textContent = 'Click to start live translation';
+}
+
+function clearLiveTranslate() {
+    ltSourceTexts = [];
+    ltTranslations = [];
+    renderLTSource('', false);
+    renderLTTranslation();
+}
+
+const audioCaptures = {};
+
+function startAudioCapture(stream, onData, key) {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+    const source = ctx.createMediaStreamSource(stream);
+    const processor = ctx.createScriptProcessor(4096, 1, 1);
+    processor.onaudioprocess = (e) => {
+        const input = e.inputBuffer.getChannelData(0);
+        const ratio = Math.round(ctx.sampleRate / 16000);
+        const downsampled = new Float32Array(Math.floor(input.length / ratio));
+        for (let i = 0; i < downsampled.length; i++) downsampled[i] = input[i * ratio];
+        const int16 = new Int16Array(downsampled.length);
+        for (let i = 0; i < downsampled.length; i++) {
+            const s = Math.max(-1, Math.min(1, downsampled[i]));
+            int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        const bytes = new Uint8Array(int16.buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        onData(btoa(binary));
+    };
+    source.connect(processor);
+    processor.connect(ctx.destination);
+    audioCaptures[key] = { ctx, source, processor };
+}
+
+function stopAudioCapture(key) {
+    const cap = audioCaptures[key];
+    if (cap) {
+        try { cap.processor.disconnect(); } catch {}
+        try { cap.source.disconnect(); } catch {}
+        try { cap.ctx.close(); } catch {}
+        delete audioCaptures[key];
+    }
+}
+
+function setupLiveWaveform(containerId, stream) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    for (let i = 0; i < 30; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'w-1 bg-indigo-500 rounded-full transition-all duration-75';
+        bar.style.height = '4px';
+        container.appendChild(bar);
+    }
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 64;
+    const source = ctx.createMediaStreamSource(stream);
+    source.connect(analyser);
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    function animate() {
+        if (!container.classList.contains('hidden')) {
+            analyser.getByteFrequencyData(dataArray);
+            const bars = container.children;
+            for (let i = 0; i < bars.length; i++) {
+                const val = dataArray[i % dataArray.length] || 0;
+                bars[i].style.height = Math.max(4, val / 255 * 48) + 'px';
+            }
+            requestAnimationFrame(animate);
+        }
+    }
+    animate();
+}
+
+window.addEventListener('resize', () => {
+    if (window.innerWidth >= 1024) {
+        document.getElementById('sidebar').classList.remove('-translate-x-full');
+        document.getElementById('sidebar-overlay').classList.remove('active');
+    }
+});
+
+let convSocket = null;
+let convStream = null;
+let convActive = false;
+let convMessages = [];
+let convAudioCtx = null;
+let convNextPlayTime = 0;
+let convIsSpeaking = false;
+let convSpeakingTimer = null;
+let convSampleRate = 16000;
+let convLastInterruptId = -1;
+
+function toggleConversation() {
+    if (convActive) stopConversation();
+    else startConversation();
+}
+
+async function startConversation() {
+    const agentId = document.getElementById('agent-id-input').value.trim();
+
+    try {
+        convStream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
+    } catch (e) {
+        showToast('Microphone access denied', 'error');
+        return;
+    }
+    convActive = true;
+    document.getElementById('conv-mic-icon').classList.add('hidden');
+    document.getElementById('conv-stop-icon').classList.remove('hidden');
+    document.getElementById('conv-pulse').classList.remove('hidden');
+    document.getElementById('conv-status').textContent = 'Connecting...';
+    document.getElementById('conv-waveform').classList.remove('hidden');
+    setupLiveWaveform('conv-waveform', convStream);
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    convSocket = new WebSocket(`${proto}//${location.host}/ws/conversation`);
+
+    convSocket.onopen = () => {
+        const voiceId = document.getElementById('conv-voice').value;
+        convSocket.send(JSON.stringify({ agent_id: agentId, voice_id: voiceId }));
+        startAudioCapture(convStream, (base64) => {
+            if (convSocket && convSocket.readyState === 1)
+                convSocket.send(JSON.stringify({ type: 'audio', audio: base64 }));
+        }, 'conversation');
+    };
+
+    convSocket.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.type === 'connected') {
+            const fmt = data.output_format || 'pcm_16000';
+            convSampleRate = parseInt(fmt.split('_')[1]) || 16000;
+            document.getElementById('conv-status').textContent = 'Listening... Speak now!';
+        } else if (data.type === 'audio') {
+            if (data.audio && (data.event_id == null || data.event_id > convLastInterruptId)) {
+                playConvPCM(data.audio);
+            }
+        } else if (data.type === 'agent_transcript') {
+            if (data.text) {
+                convMessages.push({ role: 'agent', text: data.text });
+                renderConversation();
+            }
+        } else if (data.type === 'user_transcript') {
+            if (data.text) {
+                convMessages.push({ role: 'user', text: data.text });
+                renderConversation();
+            }
+        } else if (data.type === 'interruption') {
+            convLastInterruptId = data.event_id || 0;
+            stopConvAudio();
+        } else if (data.type === 'error') {
+            showToast('Agent error: ' + data.message, 'error');
+            stopConversation();
+        }
+    };
+
+    convSocket.onerror = () => showToast('WebSocket error', 'error');
+    convSocket.onclose = () => { if (convActive) stopConversation(); };
+}
+
+function playConvPCM(base64Audio) {
+    if (!convAudioCtx) {
+        convAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: convSampleRate });
+        convNextPlayTime = convAudioCtx.currentTime;
+    }
+    if (convAudioCtx.state === 'suspended') convAudioCtx.resume();
+
+    const binary = atob(base64Audio);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+    const int16 = new Int16Array(bytes.buffer);
+    const float32 = new Float32Array(int16.length);
+    for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
+
+    const buffer = convAudioCtx.createBuffer(1, float32.length, convSampleRate);
+    buffer.getChannelData(0).set(float32);
+
+    const source = convAudioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(convAudioCtx.destination);
+
+    const startTime = Math.max(convAudioCtx.currentTime, convNextPlayTime);
+    source.start(startTime);
+    convNextPlayTime = startTime + buffer.duration;
+
+    if (!convIsSpeaking) {
+        convIsSpeaking = true;
+        document.getElementById('conv-status').textContent = 'AI is speaking...';
+    }
+    clearTimeout(convSpeakingTimer);
+    convSpeakingTimer = setTimeout(() => {
+        convIsSpeaking = false;
+        if (convActive) document.getElementById('conv-status').textContent = 'Listening... Speak now!';
+    }, (convNextPlayTime - convAudioCtx.currentTime) * 1000 + 200);
+}
+
+function stopConvAudio() {
+    if (convAudioCtx) {
+        convAudioCtx.close().catch(() => {});
+        convAudioCtx = null;
+    }
+    convNextPlayTime = 0;
+    convIsSpeaking = false;
+    convLastInterruptId = -1;
+    clearTimeout(convSpeakingTimer);
+}
+
+function renderConversation() {
+    const el = document.getElementById('conv-transcript');
+    if (!convMessages.length) {
+        el.innerHTML = '<p class="text-gray-600 italic text-sm">Conversation will appear here...</p>';
+        return;
+    }
+    el.innerHTML = convMessages.map(m => {
+        if (m.role === 'user') {
+            return `<div class="flex justify-end"><div class="bg-indigo-500/20 border border-indigo-500/30 rounded-xl rounded-br-sm px-4 py-2 max-w-[80%]"><p class="text-sm text-gray-200">${m.text}</p><p class="text-[10px] text-gray-500 mt-1">You</p></div></div>`;
+        } else {
+            return `<div class="flex justify-start"><div class="bg-white/5 border border-white/10 rounded-xl rounded-bl-sm px-4 py-2 max-w-[80%]"><p class="text-sm text-gray-200">${m.text}</p><p class="text-[10px] text-gray-500 mt-1">AI Agent</p></div></div>`;
+        }
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+}
+
+function stopConversation() {
+    convActive = false;
+    if (convSocket) {
+        try { convSocket.send(JSON.stringify({ type: 'stop' })); } catch {}
+        convSocket.close();
+        convSocket = null;
+    }
+    if (convStream) {
+        convStream.getTracks().forEach(t => t.stop());
+        convStream = null;
+    }
+    stopAudioCapture('conversation');
+    stopConvAudio();
+    document.getElementById('conv-mic-icon').classList.remove('hidden');
+    document.getElementById('conv-stop-icon').classList.add('hidden');
+    document.getElementById('conv-pulse').classList.add('hidden');
+    document.getElementById('conv-status').textContent = 'Ready';
+    document.getElementById('conv-waveform').classList.add('hidden');
+}
+
+function clearConversation() {
+    convMessages = [];
+    renderConversation();
+}
+
+async function generateSFX() {
+    const text = document.getElementById('sfx-text').value.trim();
+    if (!text) { showToast('Enter a sound description', 'error'); return; }
+
+    const btn = document.getElementById('sfx-generate-btn');
+    const btnText = document.getElementById('sfx-generate-text');
+    const spinner = document.getElementById('sfx-generate-spinner');
+    btn.disabled = true; btnText.classList.add('hidden'); spinner.classList.remove('hidden');
+
+    try {
+        const resp = await fetch('/api/sound-effects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text,
+                duration_seconds: parseFloat(document.getElementById('sfx-duration').value),
+                prompt_influence: parseFloat(document.getElementById('sfx-influence').value),
+            })
+        });
+        if (!resp.ok) throw new Error('Sound generation failed');
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = document.getElementById('sfx-audio');
+        audio.src = url;
+        document.getElementById('sfx-player').classList.remove('hidden');
+        const dl = document.getElementById('sfx-download');
+        dl.href = url; dl.download = 'vocer-sfx.mp3';
+        audio.play();
+        showToast('Sound effect generated', 'success');
+    } catch (e) {
+        showToast('Sound generation failed: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false; btnText.classList.remove('hidden'); spinner.classList.add('hidden');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => loadVoices());
+</script>
+</body>
+</html>
