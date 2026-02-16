@@ -7,6 +7,10 @@ A full-featured voice AI web application powered by ElevenLabs, built with FastA
 ![Docker](https://img.shields.io/badge/Docker-ready-blue)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
+## App Preview
+
+![VOCER app preview](./vocer.png)
+
 ## Features
 
 | Feature | Description |
